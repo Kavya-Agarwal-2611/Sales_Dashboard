@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOYX - Sales Performance Dashboard</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome for clean UI icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js for interactive spline area charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="nav-left">
+        <!-- Logo -->
+        <div class="logo-container">
+          <div class="logo-symbol">
+            <svg viewBox="0 0 100 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 10 L30 38 L42 20 L28 10 Z" fill="#F36523" />
+              <path d="M38 20 L50 38 L68 10 L54 10 Z" fill="#FF7A30" />
+            </svg>
+          </div>
+          <span class="logo-text">VOYX</span>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- Date Selector Pill -->
+        <div class="date-badge" id="datePickerBadge">
+          <i class="fa-regular fa-calendar"></i>
+          <span id="currentDateDisplay">18 Jun 2026</span>
+          <input type="date" id="datePickerInput" class="hidden-date-picker" value="2026-06-18">
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-pills">
+          <button class="nav-pill active" id="tabDashboard">
+            <i class="fa-solid fa-table-columns"></i>
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-pill" id="tabWallet">
+            <i class="fa-regular fa-credit-card"></i>
+            <span>Wallet Summary</span>
+          </button>
+        </nav>
+
+        <!-- CSV Export Button -->
+        <button class="btn-download" id="btnDownloadCsv" title="Export Leaderboard & Metrics to CSV">
+          <i class="fa-solid fa-download"></i>
+          <span>Download CSV</span>
+        </button>
+
+        <!-- Supabase Status Badge -->
+        <div class="db-status-badge" id="dbStatusBadge" title="Supabase Database Status">
+          <span class="status-dot"></span>
+          <span class="status-text">Connecting...</span>
+        </div>
+
+        <!-- User Profile & Action -->
+        <div class="user-profile">
+          <span class="user-name">Voyx Admin</span>
+          <button class="btn-logout" id="btnLogout" title="Logout">
+            <span>Logout</span>
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="dashboard-body" id="mainDashboardView">
+      
+      <!-- Top Row: Key Performance Metric Cards -->
+      <section class="kpi-grid">
+        
+        <!-- Card 1: Today's Performance (Dark Navy Card) -->
+        <div class="kpi-card card-dark">
+          <div class="kpi-label">TODAY PERFORMANCE</div>
+          <div class="kpi-value-group">
+            <span class="kpi-highlight-num" id="kpiTodayOrders">33</span>
+            <span class="kpi-highlight-unit">Orders</span>
+          </div>
+          <div class="kpi-subtext" id="kpiTodayRevenue">₹30.80K Revenue</div>
+        </div>
+
+        <!-- Card 2: June MTD -->
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <div class="icon-box icon-bar">
+              <i class="fa-solid fa-chart-simple"></i>
+            </div>
+          </div>
+          <div class="kpi-label">JUNE MTD</div>
+          <div class="kpi-main-num" id="kpiMtdOrders">658</div>
+          <div class="kpi-subtext" id="kpiMtdRevenue">₹574.69K Revenue</div>
+        </div>
+
+        <!-- Card 3: Previous Month (Same Day) -->
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <div class="icon-box icon-history">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+          </div>
+          <div class="kpi-label">PREV MONTH (SAME DAY)</div>
+          <div class="kpi-main-num" id="kpiPrevSameDayOrders">536</div>
+          <div class="kpi-subtext" id="kpiPrevSameDayRevenue">₹459.44K Revenue</div>
+        </div>
+
+        <!-- Card 4: Previous Month Total -->
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <div class="icon-box icon-calendar">
+              <i class="fa-regular fa-calendar-days"></i>
+            </div>
+          </div>
+          <div class="kpi-label">PREV MONTH</div>
+          <div class="kpi-main-num" id="kpiPrevMonthOrders">964</div>
+          <div class="kpi-subtext" id="kpiPrevMonthRevenue">₹818.90K Revenue</div>
+        </div>
+
+      </section>
+
+      <!-- Middle Row: Daily Leaderboard & Top Destinations -->
+      <section class="leaderboard-section">
+        
+        <!-- Left: Daily Leaderboard Table Card -->
+        <div class="content-card leaderboard-card">
+          <div class="card-title-bar">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-column title-icon"></i>
+              <span>DAILY LEADERBOARD</span>
+            </div>
+            <div class="card-actions">
+              <button class="btn-sm-action" id="btnRefreshData" title="Refresh Live Data">
+                <i class="fa-solid fa-arrows-rotate"></i>
+              </button>
+              <button class="btn-sm-action btn-add-rep" id="btnAddRepModal" title="Add / Update Sales Rep Record">
+                <i class="fa-solid fa-plus"></i> <span>Add Entry</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th class="th-rank">#</th>
+                  <th class="th-rep">SALES_R</th>
+                  <th class="th-day">#DAY</th>
+                  <th class="th-mtd">#MTD</th>
+                  <th class="th-mtd-rev">MTD REV</th>
+                  <th class="th-arpu">ARPU</th>
+                  <th class="th-target">TARGET</th>
+                  <th class="th-pv-month">#PV_MONTH</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody">
+                <!-- Dynamically populated by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Right: Top Destinations Card (Dark Navy) -->
+        <div class="content-card destinations-card">
+          <div class="dest-header">
+            <div class="dest-icon-bubble">
+              <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <span class="dest-title">TOP DESTINATIONS</span>
+          </div>
+
+          <div class="dest-list" id="destinationsList">
+            <!-- Dynamically populated by app.js -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Bottom Row: Daily Summary & Monthly Summary Line Charts -->
+      <section class="charts-section">
+        
+        <!-- Daily Summary Chart -->
+        <div class="content-card chart-card">
+          <div class="card-title-bar">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-line title-icon"></i>
+              <span>DAILY SUMMARY</span>
+            </div>
+            <span class="chart-subtitle">June 2026 (Daily Trend)</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="dailySummaryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Monthly Summary Chart -->
+        <div class="content-card chart-card">
+          <div class="card-title-bar">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-area title-icon"></i>
+              <span>MONTHLY SUMMARY</span>
+            </div>
+            <span class="chart-subtitle">Nov 25 - Jun 26</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="monthlySummaryChart"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Wallet Summary View (Toggled via nav pill) -->
+    <main class="dashboard-body hidden" id="walletSummaryView">
+      <div class="content-card wallet-view-card">
+        <div class="card-title-bar">
+          <div class="card-title">
+            <i class="fa-solid fa-wallet title-icon"></i>
+            <span>WALLET & COMMISSION SUMMARY</span>
+          </div>
+          <button class="btn-sm-action" id="btnBackToDashboard">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+          </button>
+        </div>
+        <div class="wallet-metrics-grid">
+          <div class="wallet-stat-box">
+            <span class="stat-label">Total Commission Pool</span>
+            <span class="stat-value">₹184,250</span>
+            <span class="stat-tag positive">+14.2% vs last month</span>
+          </div>
+          <div class="wallet-stat-box">
+            <span class="stat-label">Disbursed This Month</span>
+            <span class="stat-value">₹128,400</span>
+            <span class="stat-tag">7 reps paid</span>
+          </div>
+          <div class="wallet-stat-box">
+            <span class="stat-label">Pending Settlements</span>
+            <span class="stat-value">₹55,850</span>
+            <span class="stat-tag pending">Processing next cycle</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Add / Edit Record Modal -->
+    <div class="modal-overlay hidden" id="recordModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="modalTitle">Add / Update Sales Representative</h3>
+          <button class="modal-close" id="btnCloseModal">&times;</button>
+        </div>
+        <form id="salesRepForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="repName">Sales Rep Name</label>
+              <input type="text" id="repName" placeholder="e.g. Faizan" required>
+            </div>
+            <div class="form-group">
+              <label for="repRank">Rank (#)</label>
+              <input type="number" id="repRank" min="1" max="99" placeholder="1" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="dayOrders"># Today Orders</label>
+              <input type="number" id="dayOrders" min="0" placeholder="10" required>
+            </div>
+            <div class="form-group">
+              <label for="dayRev">Day Revenue (₹K)</label>
+              <input type="number" step="0.1" id="dayRev" placeholder="9.5" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="mtdOrders"># MTD Orders</label>
+              <input type="number" id="mtdOrders" min="0" placeholder="155" required>
+            </div>
+            <div class="form-group">
+              <label for="mtdRev">MTD Revenue (₹K)</label>
+              <input type="number" step="0.1" id="mtdRev" placeholder="143.3" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="arpu">ARPU (₹)</label>
+              <input type="number" id="arpu" placeholder="924" required>
+            </div>
+            <div class="form-group">
+              <label for="targetVal">Target Orders</label>
+              <input type="number" id="targetVal" placeholder="125" value="125" required>
+            </div>
+            <div class="form-group">
+              <label for="prevMonthOrders"># PV_MONTH</label>
+              <input type="number" id="prevMonthOrders" placeholder="84" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" id="btnCancelModal">Cancel</button>
+            <button type="submit" class="btn-save" id="btnSaveRep">Save to Supabase</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+  </div>
+
+  <!-- Main JavaScript Application -->
+  <script src="app.js"></script>
+</body>
+</html>
